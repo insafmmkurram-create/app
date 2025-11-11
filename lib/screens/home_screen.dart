@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'registration_form_screen.dart';
+import 'check_status_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -41,7 +43,16 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/bg.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(color: Colors.white),
+          ),
+          Container(color: Colors.black.withOpacity(0.25)),
+          Column(
         children: [
           // Header
           Container(
@@ -98,10 +109,81 @@ class HomeScreen extends StatelessWidget {
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(20),
-              child: const Center(
-                child: Text(
-                  'Your content goes here',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
+              child: Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 24,
+                  runSpacing: 16,
+                  children: [
+                    SizedBox(
+                      width: 140,
+                      height: 160,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const RegistrationFormScreen(),
+                                ),
+                              );
+                            },
+                            child: CircleAvatar(
+                              radius: 44,
+                              backgroundColor: Colors.blue.shade50,
+                              child: const Icon(Icons.app_registration, color: Colors.blue, size: 32),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Registration form',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 140,
+                      height: 160,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const CheckStatusScreen(),
+                                ),
+                              );
+                            },
+                            child: CircleAvatar(
+                              radius: 44,
+                              backgroundColor: Colors.green.shade50,
+                              child: const Icon(Icons.check_circle, color: Colors.green, size: 32),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Check status',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -154,10 +236,11 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-              
               ],
             ),
           ),
+          ],
+        ),
         ],
       ),
     );
