@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -27,17 +28,25 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            const SizedBox(height: 30), // Reduced top padding
             // App Logo
             Container(
               width: 150,
               height: 150,
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Colors.white.withOpacity(0.2),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -50,34 +59,18 @@ class _SplashScreenState extends State<SplashScreen> {
               child: const Icon(
                 Icons.apps_rounded,
                 size: 80,
-                color: Colors.blue,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 30),
-            // App Name
-            const Text(
-              'My App',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-                letterSpacing: 1.2,
+            // Loading Animation
+            const Spacer(), // This will push the content up
+            Padding(
+              padding: const EdgeInsets.only(bottom: 60), // Add some bottom padding
+              child: LoadingAnimationWidget.staggeredDotsWave(
+                color: const Color.fromARGB(255, 174, 247, 186),
+                size: 100,
               ),
-            ),
-            const SizedBox(height: 10),
-            // Tagline
-            const Text(
-              'Your perfect app experience',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 50),
-            // Loading Indicator
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
             ),
           ],
         ),

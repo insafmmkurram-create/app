@@ -55,15 +55,24 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Create Account'),
+        title: const Text('Create Account', style: TextStyle(color: Colors.white)),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -75,13 +84,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   height: 100,
                   margin: const EdgeInsets.only(bottom: 20.0, top: 10.0),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Colors.white.withOpacity(0.2),
                     shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: const Icon(
                     Icons.person_add_alt_1_rounded,
                     size: 50,
-                    color: Colors.blue,
+                    color: Colors.white,
                   ),
                 ),
                 
@@ -90,7 +100,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: Colors.white,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -99,7 +109,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   'Fill in your details to get started',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey,
+                    color: Colors.white70,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -233,7 +243,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   onPressed: _signup,
                   child: const Text(
                     'SIGN UP',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -253,7 +267,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: const Text(
                         'Login',
                         style: TextStyle(
-                          color: Colors.blue,
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -272,6 +286,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   textAlign: TextAlign.center,
                 ),
               ],
+            ),
             ),
           ),
         ),

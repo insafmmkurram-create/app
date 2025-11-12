@@ -80,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                        color: Colors.white,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Sign in to continue',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey,
+                        color: Colors.white,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Colors.blue,
+                            color: Colors.white,
                             fontSize: 14,
                           ),
                         ),
@@ -236,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: const Text(
                             'Sign Up',
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

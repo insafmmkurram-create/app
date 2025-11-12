@@ -107,13 +107,15 @@ class HomeScreen extends StatelessWidget {
           
           // Main Content
           Expanded(
-            child: Container(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 24,
-                  runSpacing: 16,
+              child: Column(
+                children: [
+                  // Action Buttons
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 24,
+                    runSpacing: 16,
                   children: [
                     SizedBox(
                       width: 140,
@@ -184,7 +186,8 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
