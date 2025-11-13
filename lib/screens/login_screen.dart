@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/forgot_password_screen.dart';
 import 'package:flutter_application_1/screens/signup_screen.dart';
 import 'package:flutter_application_1/screens/home_screen.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,29 +13,61 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _cnicController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
   @override
-  @override
   void dispose() {
-    _cnicController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      // Handle login logic here
-      print('CNIC: ${_cnicController.text}');
-      print('Password: ${_passwordController.text}');
-      
-      // Navigate to home screen and remove all previous routes
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-        (Route<dynamic> route) => false,
-      );
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final result = await _authService.signIn(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (result['success'] == true) {
+          // Navigate to home screen and remove all previous routes
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (Route<dynamic> route) => false,
+          );
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['error'] ?? 'Login failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -95,15 +128,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
                     
-                    // CNIC Field
+                    // Email Field
                     TextFormField(
-                      controller: _cnicController,
-                      keyboardType: TextInputType.number,
-                      maxLength: 13,
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        labelText: 'CNIC (without dashes)',
-                        prefixIcon: const Icon(Icons.credit_card, color: Colors.blue),
-                        counterText: '',
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.blue),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0),
                           borderSide: const BorderSide(color: Colors.grey),
@@ -119,13 +150,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your CNIC';
+                          return 'Please enter your email';
                         }
-                        if (value.length != 13) {
-                          return 'CNIC must be 13 digits';
-                        }
-                        if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                          return 'CNIC can only contain numbers';
+                        if (!value.contains('@')) {
+                          return 'Please enter a valid email';
                         }
                         return null;
                       },
@@ -201,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     
                     // Login Button
                     ElevatedButton(
-                      onPressed: _login,
+                      onPressed: _isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -210,14 +238,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'LOGIN',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text(
+                              'LOGIN',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 24),
                     

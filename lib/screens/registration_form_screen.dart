@@ -1,4 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_application_1/services/registration_service.dart';
+import 'package:flutter_application_1/services/storage_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RegistrationFormScreen extends StatefulWidget {
   const RegistrationFormScreen({super.key});
@@ -9,6 +14,10 @@ class RegistrationFormScreen extends StatefulWidget {
 
 class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   int _step = 0;
+  bool _isLoading = false;
+  bool _isLoadingCNIC = true;
+  File? _applicantImage;
+  String? _imageUrl;
 
   final _applicantNameCtrl = TextEditingController();
   DateTime? _applicantDob;
@@ -18,6 +27,10 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   final _applicantBankNameCtrl = TextEditingController();
   final _applicantNicCtrl = TextEditingController();
   final _applicantAcctNoCtrl = TextEditingController();
+
+  final RegistrationService _registrationService = RegistrationService();
+  final StorageService _storageService = StorageService();
+  final ImagePicker _imagePicker = ImagePicker();
   final List<String> _subtribes = const [
     'Hakim khil',
     'Baik Muhammad',
@@ -41,6 +54,191 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   double? _familySharePercent; // auto by gender + age
 
   final List<Map<String, dynamic>> _familyMembers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserCNIC();
+  }
+
+  Future<void> _loadUserCNIC() async {
+    try {
+      final cnic = await _registrationService.getUserCNIC();
+      if (mounted) {
+        setState(() {
+          if (cnic != null) {
+            _applicantNicCtrl.text = cnic;
+          }
+          _isLoadingCNIC = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingCNIC = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 100,
+      );
+      if (image != null) {
+        setState(() {
+          _applicantImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveApplicantData() async {
+    if (_applicantNameCtrl.text.isEmpty ||
+        _applicantDob == null ||
+        _applicantGender == null ||
+        _applicantMobileCtrl.text.isEmpty ||
+        _applicantFatherNameCtrl.text.isEmpty ||
+        _applicantBankNameCtrl.text.isEmpty ||
+        _applicantNicCtrl.text.isEmpty ||
+        _applicantAcctNoCtrl.text.isEmpty ||
+        _applicantSubtribe == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _step = 1;
+    });
+  }
+
+  Future<void> _saveRegistrationData() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User not authenticated'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String? imageUrl;
+
+      // Upload image if selected
+      if (_applicantImage != null) {
+        try {
+          final fileName = 'applicant_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          imageUrl = await _storageService.uploadImage(
+            _applicantImage!,
+            userId,
+            fileName,
+          );
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to upload image: ${e.toString()}'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+
+      // Prepare applicant data
+      final applicantData = {
+        'name': _applicantNameCtrl.text.trim(),
+        'dob': _applicantDob!.toIso8601String(),
+        'gender': _applicantGender,
+        'mobile': _applicantMobileCtrl.text.trim(),
+        'fatherName': _applicantFatherNameCtrl.text.trim(),
+        'bankName': _applicantBankNameCtrl.text.trim(),
+        'nic': _applicantNicCtrl.text.trim(),
+        'accountNo': _applicantAcctNoCtrl.text.trim(),
+        'subtribe': _applicantSubtribe,
+        'province': 'KPK',
+        'district': 'Kurram',
+        'tehsil': 'Central',
+        'tribe': 'Khwajak/Parachamkani',
+      };
+
+      // Prepare family members data (convert DateTime to ISO string)
+      final familyMembersData = _familyMembers.map((member) {
+        final memberData = Map<String, dynamic>.from(member);
+        if (memberData['dob'] is DateTime) {
+          memberData['dob'] = (memberData['dob'] as DateTime).toIso8601String();
+        }
+        return memberData;
+      }).toList();
+
+      // Save to Firestore
+      final result = await _registrationService.saveRegistrationData(
+        applicantData: applicantData,
+        familyMembers: familyMembersData,
+        imageUrl: imageUrl,
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration data saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['error'] ?? 'Failed to save registration'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -162,11 +360,17 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 32,
-                child: IconButton(
-                  icon: const Icon(Icons.camera_alt),
-                  onPressed: () {},
+              GestureDetector(
+                onTap: _pickImage,
+                child: CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: _applicantImage != null
+                      ? FileImage(_applicantImage!)
+                      : null,
+                  child: _applicantImage == null
+                      ? const Icon(Icons.camera_alt, size: 32)
+                      : null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -231,10 +435,21 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
           const SizedBox(height: 12),
           const Text('Nic number'),
           const SizedBox(height: 6),
-          TextField(
-            controller: _applicantNicCtrl,
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-          ),
+          _isLoadingCNIC
+              ? const TextField(
+                  enabled: false,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Loading CNIC...',
+                  ),
+                )
+              : TextField(
+                  controller: _applicantNicCtrl,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'CNIC from your account',
+                  ),
+                ),
           const SizedBox(height: 12),
           const Text('Acct no'),
           const SizedBox(height: 6),
@@ -259,12 +474,8 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _step = 1;
-                });
-              },
-              child: const Text('Save'),
+              onPressed: _saveApplicantData,
+              child: const Text('Next: Add Family Members'),
             ),
           ),
         ],
@@ -405,6 +616,10 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                         'married': _married,
                         'subtribe': _familySubtribe,
                         'share': _familySharePercent,
+                        'province': 'KPK',
+                        'district': 'Kurram',
+                        'tehsil': 'Central',
+                        'tribe': 'Khwajak/Parachamkani',
                       });
                       _relation = 'Son';
                       _familyName = '';
@@ -422,13 +637,17 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Saved')), 
-                    );
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Save'),
+                  onPressed: _isLoading ? null : _saveRegistrationData,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Save Registration'),
                 ),
               ),
             ],
