@@ -42,6 +42,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
     'Walikhil',
   ];
   String? _applicantSubtribe;
+  double? _applicantSharePercent; // auto by gender + age
 
   // Family Info
   String _relation = 'Son'; // W/D/S of
@@ -168,6 +169,9 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
         }
       }
 
+      // Calculate applicant share before saving
+      _updateApplicantShare();
+
       // Prepare applicant data
       final applicantData = {
         'name': _applicantNameCtrl.text.trim(),
@@ -179,6 +183,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
         'nic': _applicantNicCtrl.text.trim(),
         'accountNo': _applicantAcctNoCtrl.text.trim(),
         'subtribe': _applicantSubtribe,
+        'share': _applicantSharePercent,
         'province': 'KPK',
         'district': 'Kurram',
         'tehsil': 'Central',
@@ -312,6 +317,19 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
     }
   }
 
+  void _updateApplicantShare() {
+    final age = _ageFromDob(_applicantDob);
+    if (_applicantGender == 'Male' && age >= 18) {
+      _applicantSharePercent = 30;
+    } else if (age < 18) {
+      _applicantSharePercent = 5;
+    } else if (_applicantGender == 'Female' && age >= 18) {
+      _applicantSharePercent = 15;
+    } else {
+      _applicantSharePercent = null;
+    }
+  }
+
   Widget _buildLocationDefaults() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,6 +392,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
       setState(() {
         if (isApplicant) {
           _applicantDob = picked;
+          _updateApplicantShare();
         } else {
           _familyDob = picked;
           _updateFamilyShare();
@@ -383,6 +402,8 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   }
 
   Widget _buildApplicantForm() {
+    _updateApplicantShare();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -437,7 +458,23 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
               DropdownMenuItem(value: 'Male', child: Text('Male')),
               DropdownMenuItem(value: 'Female', child: Text('Female')),
             ],
-            onChanged: (v) => setState(() => _applicantGender = v),
+            onChanged: (v) {
+              setState(() {
+                _applicantGender = v;
+                _updateApplicantShare();
+              });
+            },
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 12),
+          const Text('Share in percentage (auto)'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: TextEditingController(
+                text: _applicantSharePercent == null
+                    ? ''
+                    : _applicantSharePercent!.toStringAsFixed(0)),
+            enabled: false,
             decoration: const InputDecoration(border: OutlineInputBorder()),
           ),
           const SizedBox(height: 12),
