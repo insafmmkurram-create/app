@@ -4,6 +4,7 @@ import 'package:flutter_application_1/screens/login_screen.dart';
 import 'package:flutter_application_1/screens/registration_form_screen.dart';
 import 'package:flutter_application_1/screens/check_status_screen.dart';
 import 'package:flutter_application_1/theme/app_theme.dart';
+import 'package:flutter_application_1/services/registration_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,6 +16,33 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String? _uploadedImageUrl;
+  bool _isLoadingImage = true;
+  final RegistrationService _registrationService = RegistrationService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUploadedImage();
+  }
+
+  Future<void> _loadUploadedImage() async {
+    try {
+      final registrationData = await _registrationService.getRegistrationData();
+      if (mounted) {
+        setState(() {
+          _uploadedImageUrl = registrationData?['imageUrl'] as String?;
+          _isLoadingImage = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingImage = false;
+        });
+      }
+    }
+  }
 
   Widget _buildModernActionCard({
     required IconData icon,
@@ -179,9 +207,31 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             child: ClipOval(
-                              child: user?.photoURL != null
-                                  ? Image.network(user!.photoURL!, fit: BoxFit.cover)
-                                  : Icon(Icons.person, color: AppTheme.primaryColor),
+                              child: _isLoadingImage
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      ),
+                                    )
+                                  : _uploadedImageUrl != null
+                                      ? Image.network(
+                                          _uploadedImageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            // Fallback to photoURL if uploaded image fails to load
+                                            return user?.photoURL != null
+                                                ? Image.network(user!.photoURL!, fit: BoxFit.cover)
+                                                : Icon(Icons.person, color: AppTheme.primaryColor);
+                                          },
+                                        )
+                                      : user?.photoURL != null
+                                          ? Image.network(user!.photoURL!, fit: BoxFit.cover)
+                                          : Icon(Icons.person, color: AppTheme.primaryColor),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -262,8 +312,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             icon: Icons.app_registration,
                             title: 'Registration\nForm',
                             color: AppTheme.primaryColor,
-                            onTap: () {
-                              Navigator.of(context).push(
+                            onTap: () async {
+                              await Navigator.of(context).push(
                                 PageRouteBuilder(
                                   pageBuilder: (context, animation, secondaryAnimation) => const RegistrationFormScreen(),
                                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -278,6 +328,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   transitionDuration: const Duration(milliseconds: 300),
                                 ),
                               );
+                              // Refresh image when returning from registration form
+                              _loadUploadedImage();
                             },
                             delay: 300,
                           ),

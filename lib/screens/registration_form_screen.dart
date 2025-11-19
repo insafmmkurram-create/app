@@ -16,6 +16,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   int _step = 0;
   bool _isLoading = false;
   bool _isLoadingCNIC = true;
+  bool _isUploadingImage = false;
   File? _applicantImage;
   String? _imageUrl;
 
@@ -150,6 +151,48 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
 
       // Upload image if selected
       if (_applicantImage != null) {
+        bool dialogShown = false;
+        // Show loading dialog for image upload
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => WillPopScope(
+              onWillPop: () async => false,
+              child: Dialog(
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Compressing and uploading image...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+          dialogShown = true;
+        }
+
+        setState(() {
+          _isUploadingImage = true;
+        });
+
         try {
           final fileName = 'applicant_${DateTime.now().millisecondsSinceEpoch}.jpg';
           imageUrl = await _storageService.uploadImage(
@@ -158,13 +201,22 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
             fileName,
           );
         } catch (e) {
-          if (mounted) {
+          if (mounted && dialogShown) {
+            Navigator.of(context).pop(); // Close loading dialog
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Failed to upload image: ${e.toString()}'),
                 backgroundColor: Colors.orange,
               ),
             );
+          }
+        } finally {
+          setState(() {
+            _isUploadingImage = false;
+          });
+          // Close loading dialog if still open
+          if (mounted && dialogShown && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
           }
         }
       }

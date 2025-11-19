@@ -8,8 +8,8 @@ import 'package:path/path.dart' as p;
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Compress image to approximately 120KB
-  Future<Uint8List> _compressImage(File imageFile, {int targetSizeKB = 120}) async {
+  // Compress image to approximately 30KB
+  Future<Uint8List> _compressImage(File imageFile, {int targetSizeKB = 30}) async {
     final bytes = await imageFile.readAsBytes();
     img.Image? image = img.decodeImage(bytes);
     
@@ -17,27 +17,70 @@ class StorageService {
       throw Exception('Failed to decode image');
     }
 
+    final targetSizeBytes = targetSizeKB * 1024;
+    img.Image currentImage = image;
     int quality = 85;
-    Uint8List compressedBytes = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+    int scaleFactor = 1;
+    
+    // Try compressing with original size first
+    Uint8List compressedBytes = Uint8List.fromList(img.encodeJpg(currentImage, quality: quality));
     
     // Reduce quality until we reach target size or minimum quality
-    while (compressedBytes.length > targetSizeKB * 1024 && quality > 20) {
+    int iteration = 0;
+    while (compressedBytes.length > targetSizeBytes && quality > 10) {
       quality -= 5;
-      compressedBytes = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+      compressedBytes = Uint8List.fromList(img.encodeJpg(currentImage, quality: quality));
+      // Yield control periodically to allow UI updates
+      if (iteration % 3 == 0) {
+        await Future.delayed(const Duration(milliseconds: 1));
+      }
+      iteration++;
     }
 
-    // If still too large, resize the image
-    if (compressedBytes.length > targetSizeKB * 1024) {
-      int scaleFactor = 1;
-      while (compressedBytes.length > targetSizeKB * 1024 && scaleFactor < 4) {
-        scaleFactor++;
-        img.Image resized = img.copyResize(
-          image,
-          width: (image.width / scaleFactor).round(),
-          height: (image.height / scaleFactor).round(),
-        );
-        compressedBytes = Uint8List.fromList(img.encodeJpg(resized, quality: quality));
+    // If still too large, resize the image progressively
+    iteration = 0;
+    while (compressedBytes.length > targetSizeBytes && scaleFactor < 10) {
+      scaleFactor++;
+      currentImage = img.copyResize(
+        image,
+        width: (image.width / scaleFactor).round().clamp(100, image.width),
+        height: (image.height / scaleFactor).round().clamp(100, image.height),
+      );
+      
+      // Try with moderate quality first
+      quality = 60;
+      compressedBytes = Uint8List.fromList(img.encodeJpg(currentImage, quality: quality));
+      
+      // Reduce quality further if needed
+      int qualityIteration = 0;
+      while (compressedBytes.length > targetSizeBytes && quality > 10) {
+        quality -= 5;
+        compressedBytes = Uint8List.fromList(img.encodeJpg(currentImage, quality: quality));
+        // Yield control periodically
+        if (qualityIteration % 3 == 0) {
+          await Future.delayed(const Duration(milliseconds: 1));
+        }
+        qualityIteration++;
       }
+      
+      // Yield control after each resize iteration
+      if (iteration % 2 == 0) {
+        await Future.delayed(const Duration(milliseconds: 1));
+      }
+      iteration++;
+    }
+
+    // Final fallback: aggressive resize to ensure we meet target
+    if (compressedBytes.length > targetSizeBytes) {
+      // Calculate dimensions that should result in ~30KB
+      final targetWidth = (image.width * 0.3).round().clamp(100, image.width);
+      final targetHeight = (image.height * 0.3).round().clamp(100, image.height);
+      currentImage = img.copyResize(
+        image,
+        width: targetWidth,
+        height: targetHeight,
+      );
+      compressedBytes = Uint8List.fromList(img.encodeJpg(currentImage, quality: 10));
     }
 
     return compressedBytes;
