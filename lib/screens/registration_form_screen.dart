@@ -54,6 +54,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   bool _married = false; // married/unmarried
   String? _familySubtribe;
   double? _familySharePercent; // auto by gender + age
+  final _customRelationCtrl = TextEditingController(); // for "Other" relation
 
   final List<Map<String, dynamic>> _familyMembers = [];
 
@@ -245,6 +246,22 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
       // Check if there's a family member in the form that hasn't been added yet
       // If the form has family member data, add it to the list before saving
       if (_familyName.isNotEmpty && _familyDob != null) {
+        // Validate custom relation if "Other" is selected
+        if (_relation == 'Other' && _customRelationCtrl.text.trim().isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please specify the relationship for the family member'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+        
         // Ensure gender is set based on relation
         _updateFamilyGenderFromRelation();
         _updateFamilyShare();
@@ -255,8 +272,12 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
             member['dob'] == _familyDob);
         
         if (!alreadyAdded) {
+          // Use custom relation if "Other" is selected
+          final relationToSave = _relation == 'Other' 
+              ? _customRelationCtrl.text.trim() 
+              : _relation;
           _familyMembers.add({
-            'relation': _relation,
+            'relation': relationToSave,
             'name': _familyName,
             'gender': _familyGender,
             'dob': _familyDob,
@@ -335,6 +356,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
     _applicantBankNameCtrl.dispose();
     _applicantNicCtrl.dispose();
     _applicantAcctNoCtrl.dispose();
+    _customRelationCtrl.dispose();
     super.dispose();
   }
 
@@ -349,6 +371,10 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   }
 
   void _updateFamilyGenderFromRelation() {
+    if (_relation == 'Other') {
+      // Don't auto-set gender for "Other", let user choose
+      return;
+    }
     if (_relation == 'Son') {
       _familyGender = 'Male';
     } else {
@@ -619,6 +645,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
               DropdownMenuItem(value: 'Wife', child: Text('Wife')),
               DropdownMenuItem(value: 'Daughter', child: Text('Daughter')),
               DropdownMenuItem(value: 'Son', child: Text('Son')),
+              DropdownMenuItem(value: 'Other', child: Text('Other')),
             ],
             onChanged: (v) {
               if (v == null) return;
@@ -626,10 +653,26 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                 _relation = v;
                 _updateFamilyGenderFromRelation();
                 _updateFamilyShare();
+                // Clear custom relation when switching away from "Other"
+                if (v != 'Other') {
+                  _customRelationCtrl.clear();
+                }
               });
             },
             decoration: const InputDecoration(border: OutlineInputBorder()),
           ),
+          if (_relation == 'Other') ...[
+            const SizedBox(height: 12),
+            const Text('Specify relation'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _customRelationCtrl,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter relationship (e.g., Brother, Sister, etc.)',
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           const Text('Name'),
           const SizedBox(height: 6),
@@ -638,13 +681,31 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
             decoration: const InputDecoration(border: OutlineInputBorder()),
           ),
           const SizedBox(height: 12),
-          const Text('Gender (auto)'),
+          const Text('Gender'),
           const SizedBox(height: 6),
-          TextField(
-            controller: TextEditingController(text: _familyGender ?? ''),
-            enabled: false,
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-          ),
+          _relation == 'Other'
+              ? DropdownButtonFormField<String>(
+                  value: _familyGender,
+                  items: const [
+                    DropdownMenuItem(value: 'Male', child: Text('Male')),
+                    DropdownMenuItem(value: 'Female', child: Text('Female')),
+                  ],
+                  onChanged: (v) {
+                    setState(() {
+                      _familyGender = v;
+                      _updateFamilyShare();
+                    });
+                  },
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                )
+              : TextField(
+                  controller: TextEditingController(text: _familyGender ?? ''),
+                  enabled: false,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Auto',
+                  ),
+                ),
           const SizedBox(height: 12),
           const Text('DoB'),
           const SizedBox(height: 6),
@@ -725,9 +786,21 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                       );
                       return;
                     }
+                    // Validate custom relation if "Other" is selected
+                    if (_relation == 'Other' && _customRelationCtrl.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please specify the relationship')), 
+                      );
+                      return;
+                    }
+                    
                     setState(() {
+                      // Use custom relation if "Other" is selected
+                      final relationToSave = _relation == 'Other' 
+                          ? _customRelationCtrl.text.trim() 
+                          : _relation;
                       _familyMembers.add({
-                        'relation': _relation,
+                        'relation': relationToSave,
                         'name': _familyName,
                         'gender': _familyGender,
                         'dob': _familyDob,
@@ -747,6 +820,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                       _married = false;
                       _familySubtribe = null;
                       _familySharePercent = null;
+                      _customRelationCtrl.clear();
                       _updateFamilyGenderFromRelation();
                     });
                   },

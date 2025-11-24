@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_application_1/screens/login_screen.dart';
 import 'package:flutter_application_1/screens/registration_form_screen.dart';
 import 'package:flutter_application_1/screens/check_status_screen.dart';
+import 'package:flutter_application_1/screens/payments_screen.dart';
 import 'package:flutter_application_1/theme/app_theme.dart';
 import 'package:flutter_application_1/services/registration_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -396,7 +397,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: Icons.payment_rounded,
                         label: 'Payments',
                         isSelected: _selectedIndex == 2,
-                        onTap: () => setState(() => _selectedIndex = 2),
+                        onTap: () {
+                          setState(() => _selectedIndex = 2);
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => const PaymentsScreen(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(1.0, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                );
+                              },
+                              transitionDuration: const Duration(milliseconds: 300),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

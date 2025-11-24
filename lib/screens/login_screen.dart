@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screens/forgot_password_screen.dart';
 import 'package:flutter_application_1/screens/signup_screen.dart';
 import 'package:flutter_application_1/screens/home_screen.dart';
@@ -19,13 +20,60 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _rememberMe = false;
   final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedEmail = prefs.getString('remembered_email');
+      final savedPassword = prefs.getString('remembered_password');
+      final rememberMe = prefs.getBool('remember_me') ?? false;
+
+      if (mounted) {
+        setState(() {
+          _rememberMe = rememberMe;
+          if (rememberMe && savedEmail != null) {
+            _emailController.text = savedEmail;
+          }
+          if (rememberMe && savedPassword != null) {
+            _passwordController.text = savedPassword;
+          }
+        });
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  Future<void> _saveCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('remembered_email', _emailController.text.trim());
+        await prefs.setString('remembered_password', _passwordController.text);
+        await prefs.setBool('remember_me', true);
+      } else {
+        await prefs.remove('remembered_email');
+        await prefs.remove('remembered_password');
+        await prefs.setBool('remember_me', false);
+      }
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   Future<void> _login() async {
@@ -45,6 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
         });
 
         if (result['success'] == true) {
+          // Save credentials if remember me is checked
+          await _saveCredentials();
+          
           Navigator.of(context).pushAndRemoveUntil(
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
@@ -239,30 +290,69 @@ class _LoginScreenState extends State<LoginScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Forgot Password Link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Forgot Password?',
-                          style: AppTheme.bodyStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
+                    // Remember Me and Forgot Password Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Remember Me Checkbox
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value ?? false;
+                                });
+                              },
+                              activeColor: Colors.white,
+                              checkColor: AppTheme.primaryColor,
+                              side: BorderSide(
+                                color: Colors.white.withOpacity(0.7),
+                                width: 2,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _rememberMe = !_rememberMe;
+                                });
+                              },
+                              child: Text(
+                                'Remember Me',
+                                style: AppTheme.bodyStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                            .animate()
+                            .fadeIn(duration: 600.ms, delay: 600.ms),
+                        
+                        // Forgot Password Link
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
                           ),
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .fadeIn(duration: 600.ms, delay: 600.ms),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Forgot Password?',
+                            style: AppTheme.bodyStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        )
+                            .animate()
+                            .fadeIn(duration: 600.ms, delay: 600.ms),
+                      ],
+                    ),
                     
                     const SizedBox(height: 24),
                     
