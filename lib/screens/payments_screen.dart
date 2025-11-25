@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_application_1/services/payment_service.dart';
+import 'package:flutter_application_1/services/registration_service.dart';
 import 'package:flutter_application_1/theme/app_theme.dart';
 
 class PaymentsScreen extends StatefulWidget {
@@ -417,10 +418,20 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 }
 
-class _PaymentDetailsSheet extends StatelessWidget {
+class _PaymentDetailsSheet extends StatefulWidget {
   final Map<String, dynamic> payment;
 
   const _PaymentDetailsSheet({required this.payment});
+
+  @override
+  State<_PaymentDetailsSheet> createState() => _PaymentDetailsSheetState();
+}
+
+class _PaymentDetailsSheetState extends State<_PaymentDetailsSheet> {
+  final RegistrationService _registrationService = RegistrationService();
+  Map<String, dynamic>? _registrationData;
+  bool _isLoadingRegistration = true;
+  List<Map<String, dynamic>> _memberShares = [];
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'N/A';
@@ -430,6 +441,121 @@ class _PaymentDetailsSheet extends StatelessWidget {
   String _formatDateTime(DateTime? date) {
     if (date == null) return 'N/A';
     return DateFormat('MMM dd, yyyy • hh:mm a').format(date);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRegistrationData();
+  }
+
+  Future<void> _loadRegistrationData() async {
+    try {
+      final data = await _registrationService.getRegistrationData();
+      if (mounted) {
+        setState(() {
+          _registrationData = data;
+          _isLoadingRegistration = false;
+        });
+        _calculateMemberShares();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingRegistration = false;
+        });
+      }
+    }
+  }
+
+  int _calculateAge(dynamic dob) {
+    if (dob == null) return 0;
+    DateTime? date;
+    if (dob is DateTime) {
+      date = dob;
+    } else if (dob is String) {
+      try {
+        date = DateTime.parse(dob);
+      } catch (e) {
+        return 0;
+      }
+    } else {
+      return 0;
+    }
+    
+    final today = DateTime.now();
+    int age = today.year - date.year;
+    if (today.month < date.month || (today.month == date.month && today.day < date.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  double _calculateSharePercentage(String? gender, int age) {
+    if (age < 18) {
+      return 5.0; // Below 18: 5%
+    } else if (gender == 'Male') {
+      return 30.0; // Male above 18: 30%
+    } else if (gender == 'Female') {
+      return 15.0; // Female above 18: 15%
+    }
+    return 0.0;
+  }
+
+  void _calculateMemberShares() {
+    final totalAmount = widget.payment['paymentTotal'] as num?;
+    if (totalAmount == null || _registrationData == null) {
+      _memberShares = [];
+      return;
+    }
+
+    final List<Map<String, dynamic>> shares = [];
+    
+    // Get applicant data
+    final applicant = _registrationData!['applicant'] as Map<String, dynamic>?;
+    if (applicant != null) {
+      final gender = applicant['gender'] as String?;
+      final dob = applicant['dob'];
+      final age = _calculateAge(dob);
+      final sharePercent = _calculateSharePercentage(gender, age);
+      final shareAmount = (totalAmount * sharePercent / 100);
+      
+      shares.add({
+        'name': applicant['name'] ?? 'Applicant',
+        'relation': 'Applicant',
+        'gender': gender ?? 'N/A',
+        'age': age,
+        'sharePercent': sharePercent,
+        'shareAmount': shareAmount,
+      });
+    }
+
+    // Get family members
+    final familyMembers = _registrationData!['familyMembers'] as List<dynamic>?;
+    if (familyMembers != null) {
+      for (var member in familyMembers) {
+        if (member is Map<String, dynamic>) {
+          final gender = member['gender'] as String?;
+          final dob = member['dob'];
+          final age = _calculateAge(dob);
+          final sharePercent = _calculateSharePercentage(gender, age);
+          final shareAmount = (totalAmount * sharePercent / 100);
+          
+          shares.add({
+            'name': member['name'] ?? 'Unknown',
+            'relation': member['relation'] ?? 'Family Member',
+            'gender': gender ?? 'N/A',
+            'age': age,
+            'sharePercent': sharePercent,
+            'shareAmount': shareAmount,
+          });
+        }
+      }
+    }
+
+    setState(() {
+      _memberShares = shares;
+    });
   }
 
   Color _getStatusColor(String? status) {
@@ -488,15 +614,15 @@ class _PaymentDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paymentDate = payment['paymentDate'] as DateTime?;
-    final status = payment['paymentStatus'] as String?;
-    final amount = payment['paymentTotal'] as num?;
-    final applicantName = payment['applicantName'] as String?;
-    final nic = payment['nic'] as String?;
-    final accountNumber = payment['accountNumber'] as String?;
-    final bankName = payment['bankName'] as String?;
-    final createdAt = payment['createdAt'] as DateTime?;
-    final dateStr = payment['date'] as String?;
+    final paymentDate = widget.payment['paymentDate'] as DateTime?;
+    final status = widget.payment['paymentStatus'] as String?;
+    final amount = widget.payment['paymentTotal'] as num?;
+    final applicantName = widget.payment['applicantName'] as String?;
+    final nic = widget.payment['nic'] as String?;
+    final accountNumber = widget.payment['accountNumber'] as String?;
+    final bankName = widget.payment['bankName'] as String?;
+    final createdAt = widget.payment['createdAt'] as DateTime?;
+    final dateStr = widget.payment['date'] as String?;
 
     final statusColor = _getStatusColor(status);
 
@@ -718,6 +844,118 @@ class _PaymentDetailsSheet extends StatelessWidget {
                           ],
                         ),
                       ),
+                    // Member Shares Section
+                    if (_memberShares.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: AppTheme.modernCardDecoration(
+                          borderRadius: 20,
+                          hasShadow: true,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Payment Distribution by Member',
+                              style: AppTheme.subheadingStyle(
+                                fontSize: 18,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ..._memberShares.map((member) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey[200]!,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              member['name'] ?? 'Unknown',
+                                              style: AppTheme.subheadingStyle(
+                                                fontSize: 16,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${member['relation'] ?? 'Member'} • ${member['gender'] ?? 'N/A'} • Age: ${member['age'] ?? 'N/A'}',
+                                              style: AppTheme.bodyStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'PKR ${(member['shareAmount'] as num).toStringAsFixed(2)}',
+                                            style: AppTheme.subheadingStyle(
+                                              fontSize: 18,
+                                              color: AppTheme.primaryColor,
+                                            ).copyWith(fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${member['sharePercent']}%',
+                                            style: AppTheme.bodyStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                    ] else if (_isLoadingRegistration) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: AppTheme.modernCardDecoration(
+                          borderRadius: 20,
+                          hasShadow: true,
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 16),
+                            Text(
+                              'Loading member shares...',
+                              style: AppTheme.bodyStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                   ],
                 ),
