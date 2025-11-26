@@ -4,6 +4,7 @@ import 'package:flutter_application_1/screens/login_screen.dart';
 import 'package:flutter_application_1/screens/registration_form_screen.dart';
 import 'package:flutter_application_1/screens/check_status_screen.dart';
 import 'package:flutter_application_1/screens/payments_screen.dart';
+import 'package:flutter_application_1/screens/news_screen.dart';
 import 'package:flutter_application_1/theme/app_theme.dart';
 import 'package:flutter_application_1/services/registration_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -391,7 +392,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: Icons.article_outlined,
                         label: 'News',
                         isSelected: _selectedIndex == 1,
-                        onTap: () => setState(() => _selectedIndex = 1),
+                        onTap: () {
+                          setState(() => _selectedIndex = 1);
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => const NewsScreen(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(1.0, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                );
+                              },
+                              transitionDuration: const Duration(milliseconds: 300),
+                            ),
+                          );
+                        },
                       ),
                       _buildFooterIcon(
                         icon: Icons.payment_rounded,
